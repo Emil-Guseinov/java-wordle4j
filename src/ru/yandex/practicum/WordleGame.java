@@ -17,45 +17,56 @@ public class WordleGame {
     public WordleGame(WordleDictionary dictionary, PrintWriter logger) {
         this.dictionary = dictionary;
         this.logger = logger;
-        this.secretWord = dictionary.getRandomWord().toLowerCase();
+        this.secretWord = dictionary.getRandomWord();
+        logger.println("Начало игры,загадано слово " + secretWord);
     }
 
     public void start(Scanner scanner) {
-        System.out.println("Игра началась!");
-        logger.println("Начало игры,загадано слово " + secretWord);
 
         while (attempts < MAX_ATTEMPTS) {
             System.out.println("Попытка: " + (attempts + 1));
             String guess = scanner.nextLine().trim().toLowerCase();
+            String hint;
 
             if (guess.isEmpty()) {
-                String hint = findAutoHint();
-                System.out.println("Совет компьютера " + hint);
-                logger.println("Игрок запросил подсказку " + hint);
-                continue;
-            }
-            if (guess.length() != 5) {
-                System.out.println("Слово должно быть из 5 букв!");
-                continue;
-            }
-            if (!dictionary.contains(guess)) {
-                System.out.println("Нету слова в словаре");
-                continue;
+                hint = findAutoHint();
+                if (hint.equals("Подходящих слов нет")) {
+                    continue;
+                }
+                System.out.println("Компьютер делает ход " + hint);
+                logger.println("Компьютер начал ходить " + hint);
+
+            } else {
+                hint = guess;
             }
 
-            String input = attemptWords(guess);
-            System.out.println("> " + input);
+            try {
+                dictionary.userGuess(hint);
 
-            if (guess.equals(secretWord)) {
-                System.out.println("Поздравляем вы отгадали слово " + secretWord);
-                logger.println("Слово отгадано,работа завершена");
-                return;
+                String input = attemptWords(hint);
+                System.out.println("> " + input);
+
+                if (hint.equals(secretWord)) {
+                    System.out.println("Поздравляем вы отгадали слово " + secretWord);
+                    logger.println("Победа на попытке " + (attempts + 1));
+                    logger.println("работа завершена");
+                    return;
+                }
+
+                attempts++;
+            } catch (WordleException e) {
+
+                System.out.println(e.getMessage());
+                logger.println("[Ошибка] Сообщение: " + e.getMessage());
+                e.printStackTrace(logger);
+                logger.flush();
+
+
             }
-
-            attempts++;
         }
         System.out.println("Попытки кончились, загаданное слово " + secretWord);
         logger.println("Попытки кончились");
+        logger.close();
     }
 
     public String attemptWords(String guess) {

@@ -12,17 +12,30 @@ public class WordleDictionary {
 
     public void addAll(Collection<String> addAllWords) {
         for (String word : addAllWords) {
-            if (word.trim().length() == 5) {
-                this.words.add(word.toLowerCase());
+            if (word == null) continue;
+            String treason = word.trim().toLowerCase().replace("ё", "е");
+            if (treason.length() == 5) {
+                this.words.add(treason);
             }
         }
     }
 
-    public boolean contains(String word) {
-        if (word == null) {
-            return false;
+    public void userGuess(String guess) {
+        if (guess == null) {
+            throw new WordleException("Ввод не может быть пустым");
         }
-        return words.contains(word.toLowerCase());
+        String normalGuess = guess.trim().toLowerCase().replace("ё", "е");
+
+        if (!normalGuess.matches("[а-я]+")) {
+            throw new WordleException("Слово должно состоять из РуССких букв");
+        }
+        if (normalGuess.length() != 5) {
+            throw new InvalidWordLengthException("Слово должно быть из 5 букв!");
+        }
+        if (!this.words.contains(normalGuess)) {
+
+            throw new WordNotFoundException("Нету такого слова");
+        }
     }
 
     public List<String> getAllWords() {
