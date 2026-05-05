@@ -19,7 +19,7 @@ public class WordleGame {
         this.dictionary = dictionary;
         this.logger = logger;
         this.secretWord = dictionary.getRandomWord();
-        logger.println("Начало игры,загадано слово " + secretWord);
+        logger.println("Начало игры, загадано слово " + secretWord);
     }
 
     public int getAttempts() {
@@ -51,9 +51,10 @@ public class WordleGame {
             updateState(guess, result);
 
             if (guess.equals(secretWord)) {
-                logger.println("Победа на попытке " + (attempts + 1));
+                logger.println("Слово отгадано: " + secretWord);
                 logger.println("работа завершена");
                 return "Победа " + secretWord;
+
             }
 
             attempts++;
@@ -117,7 +118,6 @@ public class WordleGame {
             } else if (r == '^') {
                 required.add(g);
             } else if (r == '-') {
-                excluded.add(g);
                 if (!required.contains(g) && !fixed.containsValue(g)) {
                     excluded.add(g);
                 }

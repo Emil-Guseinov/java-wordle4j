@@ -20,7 +20,7 @@ public class WordleDictionary {
         }
     }
 
-    public void userGuess(String guess) {
+    public void userGuess(String guess) throws WordleException {
         if (guess == null) {
             throw new WordleException("Ввод не может быть пустым");
         }
