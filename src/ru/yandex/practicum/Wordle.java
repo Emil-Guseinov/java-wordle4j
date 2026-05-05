@@ -23,31 +23,52 @@ public class Wordle {
             WordleDictionaryLoader loader = new WordleDictionaryLoader(logger);
             WordleDictionary dictionary = loader.loadFromFile(WORDS_FILE_NAME);
 
-            boolean isRunning = true;
             printMenu();
 
+            boolean isRunning = true;
             while (isRunning) {
                 System.out.println("Введите команду: 1 Играть  0 Выход");
                 String input = scanner.nextLine();
+
                 switch (input) {
-                    case ("1"):
-                        WordleGame game = new WordleGame(dictionary, logger);
+                    case "1":
                         System.out.println("Игра началась!");
-                        game.start(scanner);
+                        WordleGame game = new WordleGame(dictionary, logger);
+                        boolean isWin = false;
+
+                        while (!game.isGameOver()) {
+                            System.out.println("Попытка " + (game.getAttempts() + 1) + ": Введите слово");
+                            String guess = scanner.nextLine();
+
+                            String result = game.processGuess(guess);
+
+                            if (result.startsWith("Победа")) {
+                                System.out.println("Победа, слово " + game.getSecretWord());
+                                isWin = true;
+                                break;
+
+                            } else if (result.startsWith("[Ошибка]")) {
+                                System.out.println(result.replace("[Ошибка] ", ""));
+
+                            } else {
+                                System.out.println("--> " + result);
+                            }
+                        }
+                        if (!isWin && game.isGameOver()) {
+                            System.out.println("Вы проиграли. Слово: " + game.getSecretWord());
+                        }
                         break;
 
-                    case ("0"):
-                        isRunning = false;
+                    case "0":
                         logger.println("Пользователь завершил программу");
+                        isRunning = false;
                         break;
 
                     default:
                         System.out.println("Вы ввели неверно");
                         logger.println("Пользователь ввел неверную команду");
-                        break;
                 }
             }
-
         } catch (Exception exception) {
 
             logger.println("[Ошибка] Сообщение: " + exception.getMessage());

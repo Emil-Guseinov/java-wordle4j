@@ -10,9 +10,10 @@ public class WordleGame {
     private static final int MAX_ATTEMPTS = 6;
     private final WordleDictionary dictionary;
     private final PrintWriter logger;
-    private final Map<Integer, Character> positions = new HashMap<>();
-    private final Set<Character> mustHave = new HashSet<>();
+    private final Set<String> usedWords = new HashSet<>();
     private final Set<Character> excluded = new HashSet<>();
+    private final Set<Character> required = new HashSet<>();
+    private final Map<Integer, Character> fixed = new HashMap<>();
 
     public WordleGame(WordleDictionary dictionary, PrintWriter logger) {
         this.dictionary = dictionary;
@@ -21,97 +22,125 @@ public class WordleGame {
         logger.println("Начало игры,загадано слово " + secretWord);
     }
 
-    public void start(Scanner scanner) {
+    public int getAttempts() {
+        return attempts;
+    }
 
-        while (attempts < MAX_ATTEMPTS) {
-            System.out.println("Попытка: " + (attempts + 1));
-            String guess = scanner.nextLine().trim().toLowerCase();
-            String hint;
+    public String processGuess(String input) {
 
-            if (guess.isEmpty()) {
-                hint = findAutoHint();
-                if (hint.equals("Подходящих слов нет")) {
-                    continue;
-                }
-                System.out.println("Компьютер делает ход " + hint);
-                logger.println("Компьютер начал ходить " + hint);
+        String guess = input.trim().toLowerCase().replace("ё", "е");
 
-            } else {
-                hint = guess;
-            }
-
-            try {
-                dictionary.userGuess(hint);
-
-                String input = attemptWords(hint);
-                System.out.println("> " + input);
-
-                if (hint.equals(secretWord)) {
-                    System.out.println("Поздравляем вы отгадали слово " + secretWord);
-                    logger.println("Победа на попытке " + (attempts + 1));
-                    logger.println("работа завершена");
-                    return;
-                }
-
-                attempts++;
-            } catch (WordleException e) {
-
-                System.out.println(e.getMessage());
-                logger.println("[Ошибка] Сообщение: " + e.getMessage());
-                e.printStackTrace(logger);
-                logger.flush();
-
+        if (guess.isEmpty()) {
+            String hint = findAutoHint();
+            if (hint == null) {
+                attempts = MAX_ATTEMPTS;
+                return "Нету возможных слов";
 
             }
+            guess = hint;
+            logger.println("Компьютер начал ходить ");
+
         }
-        System.out.println("Попытки кончились, загаданное слово " + secretWord);
-        logger.println("Попытки кончились");
-        logger.close();
+
+        if (!usedWords.add(guess)) {
+            return "Слово уже использовано";
+        }
+        try {
+            dictionary.userGuess(guess);
+            String result = attemptWords(guess);
+            updateState(guess, result);
+
+            if (guess.equals(secretWord)) {
+                logger.println("Победа на попытке " + (attempts + 1));
+                logger.println("работа завершена");
+                return "Победа " + secretWord;
+            }
+
+            attempts++;
+            return result;
+
+        } catch (WordleException e) {
+
+            logger.println("[Ошибка] Сообщение: " + e.getMessage());
+            return "[Ошибка] " + e.getMessage();
+        }
+
+    }
+
+    public boolean isGameOver() {
+        return attempts >= MAX_ATTEMPTS;
+
+    }
+
+    public String getSecretWord() {
+        return secretWord;
     }
 
     public String attemptWords(String guess) {
-        StringBuilder b = new StringBuilder();
+
+        Map<Character, Integer> remaining = new HashMap<>();
+
+        for (char c : secretWord.toCharArray()) {
+            remaining.put(c, remaining.getOrDefault(c, 0) + 1);
+        }
+        char[] result = new char[5];
+        Arrays.fill(result, '-');
+
         for (int i = 0; i < 5; i++) {
+            if (guess.charAt(i) == secretWord.charAt(i)) {
+                result[i] = '+';
+                char c = guess.charAt(i);
+                remaining.put(c, remaining.get(c) - 1);
+            }
+        }
+        for (int i = 0; i < 5; i++) {
+            if (result[i] == '+') continue;
             char g = guess.charAt(i);
-            char c = secretWord.charAt(i);
 
-            if (g == c) {
-                b.append("+");
-                positions.put(i, g);
+            if (remaining.getOrDefault(g, 0) > 0) {
+                result[i] = '^';
+                remaining.put(g, remaining.get(g) - 1);
 
-            } else if (secretWord.contains(String.valueOf(g))) {
-                b.append("^");
-                mustHave.add(g);
-            } else {
-                b.append("-");
-                if (!secretWord.contains(String.valueOf(g))) {
+            }
+        }
+        return new String(result);
+    }
+
+    private void updateState(String guess, String result) {
+
+        for (int i = 0; i < guess.length(); i++) {
+            char g = guess.charAt(i);
+            char r = result.charAt(i);
+
+            if (r == '+') {
+                fixed.put(i, g);
+            } else if (r == '^') {
+                required.add(g);
+            } else if (r == '-') {
+                excluded.add(g);
+                if (!required.contains(g) && !fixed.containsValue(g)) {
                     excluded.add(g);
                 }
             }
-
         }
-        return b.toString();
     }
 
-    private boolean isValidHint(String word) {
-        if (word.length() != 5) {
-            return false;
-        }
-        for (Map.Entry<Integer, Character> entry : positions.entrySet()) {
-            if (word.charAt(entry.getKey()) != entry.getValue()) {
-                return false;
-            }
-        }
-        for (char c : mustHave) {
-            if (word.indexOf(c) == -1) {
-                return false;
-            }
-        }
+    private Boolean isValid(String word) {
+
+        if (word.length() != 5) return false;
+
         for (char c : excluded) {
-            if (word.indexOf(c) != -1 && !mustHave.contains(c) && !positions.containsValue(c)) {
-                return false;
-            }
+            if (word.indexOf(c) != -1) return false;
         }
+
+        for (char c : required) {
+            if (!word.contains(String.valueOf(c))) return false;
+        }
+
+        for (Map.Entry<Integer, Character> e : fixed.entrySet()) {
+            if (word.charAt(e.getKey()) != e.getValue()) return false;
+        }
+
         return true;
     }
 
@@ -119,12 +148,12 @@ public class WordleGame {
         List<String> allWords = dictionary.getAllWords();
         Collections.shuffle(allWords);
         for (String word : allWords) {
-            if (isValidHint(word)) {
+            if (!usedWords.contains(word) && isValid(word)) {
                 logger.println("Нашли подходящее слово " + word);
                 return word;
             }
         }
         logger.println("Подходящих слов нет");
-        return "Подходящих слов нет";
+        return null;
     }
 }
